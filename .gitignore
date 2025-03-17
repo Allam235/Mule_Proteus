@@ -1,0 +1,5 @@
+# Ignore everything in 'CurrentProCode' folder
+CurrentProCode/*
+
+# Except for 'main.cpp'
+!CurrentProCode/main.cpp
