@@ -58,9 +58,10 @@ void move_forward(float percentLeft, float percentRight, int counts) //using enc
 }
 
 int main(void) {
-    int percentLeft = 15;
-    int percentRight = -15;
-    int counts = 270;
+    int percentLeft = 40;
+    int percentRight
+     = -40;
+    int counts = 255;
 
     //Reset encoder counts
     right_encoder.ResetCounts();

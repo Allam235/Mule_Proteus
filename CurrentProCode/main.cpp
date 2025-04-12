@@ -20,10 +20,13 @@ using namespace std;
 // AnalogInputPin middle_opto(FEHIO::P2_1);
 // AnalogInputPin left_opto(FEHIO::P2_2);
 
-DigitalInputPin left_back(FEHIO::P1_0);
-DigitalInputPin right_back(FEHIO::P1_1);
+DigitalInputPin left_back(FEHIO::P3_6);
+DigitalInputPin right_back(FEHIO::P3_7);
 
-FEHServo servo(FEHServo::Servo0);
+
+
+FEHServo servoComp(FEHServo::Servo0);
+FEHServo servo(FEHServo::Servo7);
 
 
 
@@ -62,10 +65,90 @@ void move_forward(float percentLeft, float percentRight, int counts) //using enc
 }
 
 //move forward by turning both motors, can used varied percents
+void move_back(float percentLeft, float percentRight, int counts) //using encoders
+{
+    percentLeft = abs(percentLeft);
+    percentRight = abs(percentRight);
+    //Reset encoder counts
+    right_encoder.ResetCounts();
+    left_encoder.ResetCounts();
+
+    //Set both motors to desired percent
+    right_motor.SetPercent(percentRight);
+    left_motor.SetPercent(percentLeft);
+
+    //While the average of the left and right encoder is less than counts,
+    //keep running motors
+    while((left_encoder.Counts() + right_encoder.Counts()) / 2. < counts){}
+    //string s of all encoder info
+    LCD.WriteLine("Move Forward");
+    //LCD.WriteLine(right_encoder.Counts());
+    //LCD.WriteLine(left_encoder.Counts());
+    //Turn off motors
+    right_motor.Stop();
+    left_motor.Stop();
+    Sleep(0.25);
+}
+
+//move forward by turning both motors, can used varied percents
+void move_backUntil(float percentLeft, float percentRight, float maxTime) //using encoders
+{
+    percentLeft = abs(percentLeft);
+    percentRight = abs(percentRight);
+    bool doneL = false;
+    bool doneR = false;
+    //Reset encoder counts
+    right_encoder.ResetCounts();
+    left_encoder.ResetCounts();
+
+    //Set both motors to desired percent
+    right_motor.SetPercent(percentRight);
+    left_motor.SetPercent(percentLeft);
+    float startTime = TimeNow();
+
+    //While the average of the left and right encoder is less than counts,
+    //keep running motors
+    LCD.WriteLine(left_back.Value());
+    Sleep(0.5);
+    while((!doneL || !doneR)){
+        if(doneL || !left_back.Value()){
+            doneL = true;
+            left_motor.Stop();
+            if(doneR == false){
+                right_motor.SetPercent(percentRight+15);
+            }
+        }
+        if(doneR || !right_back.Value()){
+            doneR = true;
+            right_motor.Stop();
+            if(doneL == false){
+                left_motor.SetPercent(percentLeft+15);
+            }
+        }
+        if(TimeNow() - startTime >= maxTime){
+            doneR = true;
+            right_motor.Stop();
+            doneL = true;
+            left_motor.Stop();
+        }
+        LCD.WriteLine("BUMP SWITCH");
+    }
+    //string s of all encoder info
+    LCD.WriteLine("Move Forward");
+    //LCD.WriteLine(right_encoder.Counts());
+    //LCD.WriteLine(left_encoder.Counts());
+    //Turn off motors
+    right_motor.Stop();
+    left_motor.Stop();
+    Sleep(0.25);
+}
+
+
+//move forward by turning both motors, can used varied percents
 void move_backUntil(float percentLeft, float percentRight) //using encoders
 {
-    percentLeft *= -1;
-    percentRight *= -1;
+    percentLeft = abs(percentLeft);
+    percentRight = abs(percentRight);
     bool doneL = false;
     bool doneR = false;
     //Reset encoder counts
@@ -99,6 +182,52 @@ void move_backUntil(float percentLeft, float percentRight) //using encoders
     right_motor.Stop();
     left_motor.Stop();
     Sleep(0.25);
+}
+
+//move forward by turning both motors, can used varied percents
+void test_backUntil(float percentLeft, float percentRight) //using encoders
+{
+    percentLeft = abs(percentLeft);
+    percentRight = abs(percentRight);
+    bool doneL = false;
+    bool doneR = false;
+    //Reset encoder counts
+    right_encoder.ResetCounts();
+    left_encoder.ResetCounts();
+
+    //Set both motors to desired percent
+    right_motor.SetPercent(percentRight);
+    left_motor.SetPercent(percentLeft);
+
+    //While the average of the left and right encoder is less than counts,
+    //keep running motors
+    LCD.WriteLine(left_back.Value());
+    Sleep(0.5);
+    while(!doneL || !doneR){
+        if(doneL || !left_back.Value()){
+            doneL = true;
+            left_motor.Stop();
+        }
+        if(doneR || !right_back.Value()){
+            doneR = true;
+            right_motor.Stop();
+        }
+        LCD.WriteLine("BUMP SWITCH");
+    }
+    //string s of all encoder info
+    LCD.WriteLine("Move Forward");
+    //LCD.WriteLine(right_encoder.Counts());
+    //LCD.WriteLine(left_encoder.Counts());
+    //Turn off motors
+    right_motor.Stop();
+    left_motor.Stop();
+    Sleep(0.25);
+    while(true){
+        LCD.WriteLine("Counts::");
+        LCD.WriteLine(right_encoder.Counts());
+        LCD.WriteLine(left_encoder.Counts());
+        Sleep(0.5);
+    }
 }
 
 //move one motor by using char s, l for left motor, r for right motor 
@@ -262,19 +391,9 @@ float cds_move(float percentLeft, float percentRight, int counts) // using encod
 
 
 int main(void) {
-    //const char* teamKey = "1130D1PWG";
+    const char* teamKey = "1130D1PWG";
     //RCS.InitializeTouchMenu(teamKey);
     //RCS.CurrentRegion();
-
-
-    servo.SetMax(2070);
-    servo.SetMin(500);
-    servo.SetDegree(0);
-
-    //testCounts();
-
-    
-    //return 1;
 
     LCD.Clear();
     LCD.WriteLine("Battery Power: ");
@@ -303,30 +422,138 @@ int main(void) {
     float toWindowRightTilt = 8;
     float backCloseWindowStr = 3;
     float backCloseWindow = 10;
+    float dontHitWallUpRamp = 40;
 
-    float strBegin = 145;
-    float leftMotrOut = 100;
-    float crt = 15;
-    float approachCompo = 125;
 
-    servo.SetMax(2070);
-    servo.SetMin(500);
-    servo.SetDegree(0);
-    Sleep(1.0);
     
 
+    float strBegin = 125;
+    float leftMotrOut1 = 264;
+    float crt = 15;
+    float approachCompo = 160;
+
+    float spin360 = 270*2;
+
+    float turn90ToApple = 250;
+
+
+    servoComp.SetMax(2500);
+    servoComp.SetMin(500);\
+    servo.SetMax(1640);
+    servo.SetMin(625);
+
+    servoComp.SetDegree(45);//up down position
+    servo.SetDegree(180); // all down position
+
+
+    //max for the futaba servo is 2200
+    //the range needed apple bucket servo is 1020 clicks, max being 2200(otherwise clicks incessantly), no min
+    
+        
+    Sleep(0.7);
+    
+    
     move_forward(defaultLeftPower, defaultRightPower, strBegin);
-    move_oneMotor(defaultLeftPower, 'l', leftMotrOut);
-    move_forward(defaultLeftPower, defaultRightPower, crt);
-    move_oneMotor(defaultLeftPower, 'l', leftMotrOut);
+    move_oneMotor(defaultLeftPower, 'l', leftMotrOut1);
+    servoComp.SetDegree(0);
     move_forward(defaultLeftPower, defaultRightPower, approachCompo);
     
+    servoComp.SetDegree(180);//turn composter 180
+    Sleep(0.5);
+    servoComp.SetDegree(170); //undo turn slightly
+    Sleep(0.5);
+    move_back(defaultLeftPower, defaultRightPower-10, 55);
+    Sleep(0.7);
+    
+
+    servoComp.SetDegree(0);
+    Sleep(0.7);
+    move_forward(defaultLeftPower, defaultRightPower, 75);
+    move_back(defaultLeftPower, defaultRightPower, 15);
+    Sleep(0.7);
+    servoComp.SetDegree(122);
+
+    ///begin apple bucket run
+
+    move_forward(defaultLeftPower, defaultRightPower, 30);
+    
+
+    
+    move_back(defaultLeftPower, defaultRightPower, 100);
+
+    Sleep(0.5);
+
+    servoComp.SetDegree(45);
+    turn_right(defaultLeftPower, defaultRightPower, turn90Count);
+    move_backUntil(defaultLeftPower, defaultRightPower, 2.0);//go to back wall
+    
+    move_forward(defaultLeftPower, defaultRightPower, 360);
+    turn_left(defaultLeftPower, defaultRightPower, spin360+100);//turn 180
+
+    move_back(defaultLeftPower, defaultRightPower, 210); // correct by shifteing bot to the left
+    turn_right(defaultLeftPower, defaultRightPower, 20);
+
     
     
+
+    move_backUntil(defaultLeftPower+7, defaultRightPower, 3.75);
+    move_forward(defaultLeftPower, defaultRightPower, 315); //move down from wall to pick up bucket
+    servoComp.SetDegree(56);//set straight up down
+    servo.SetDegree(35);
+
+    turn_right(defaultLeftPower, defaultRightPower, turn90ToApple);
+    move_forward(defaultLeftPower, defaultRightPower, 288);//move to pick up bucket
+    Sleep(0.5);
+    servo.SetDegree(2); // pick up bucket
+
+    Sleep(0.7);
+
+    //after apple bucket
+    
+
+    servoComp.SetDegree(55);
+    servo.SetDegree(2);
+
+    move_back(defaultLeftPower, defaultRightPower, 250); // move back from apple
+    move_oneMotor(-1 * defaultRightPower, 'r', 200);
+
+    move_back(defaultLeftPower, defaultRightPower, 400); // correct by shifteing bot to the right
+    move_oneMotor(-1 * defaultRightPower, 'l', 400);
+
+    move_backUntil(defaultLeftPower, defaultRightPower, 3.0); // hit button
+
+
+    ///////Window
+
+    servoComp.SetDegree(45);
+
+    move_forward(defaultLeftPower, defaultRightPower, dontHitWallUpRamp);
+
+    turn_right(defaultLeftPower, defaultRightPower, turn90Count);
+
+
+    move_forward(defaultLeftPower+10, defaultRightPower+10, (upRamp*INCH));
+
+    // sharp left turn
+    turn_left(25, 25, turn90Count);
+
+    // move forward to push window
+    move_forward(defaultLeftPower, defaultRightPower+5, (toWindowTilt*INCH));
+    
+    move_forward(defaultLeftPower+10, defaultRightPower+5, (toWindow*INCH));
+    move_forward(defaultLeftPower+20, defaultRightPower, (toWindowRightTilt*INCH)-40);
     Sleep(1.0);
-    Sleep(1.0);
-    servo.SetDegree(180);
+    //move_backward(defaultLeftPower, defaultRightPower, (backCloseWindowStr*INCH));
+    //move_backward(defaultLeftPower+20, defaultRightPower, (backCloseWindow*INCH));
+    testCounts();
 
     testCounts();
     return 1;
+
+
+    testCounts();
+    return 1;
+
+
+    
 }
